@@ -2,17 +2,19 @@
 <html lang="en" dir="ltr">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>QR Scanner | ماسح مواعيد العيادة</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>QR Scanner | ماسح المواعيد</title>
+    
     <!-- Supabase JS Client -->
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.0"></script>
+    <!-- HTML5 QR Code -->
     <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+    
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Cairo:wght@300;400;500;600;700&display=swap');
 
         :root {
             --bg-primary: #f0f2f5;
-            --bg-secondary: #ffffff;
             --bg-card: #ffffff;
             --text-primary: #1a1a2e;
             --text-secondary: #555770;
@@ -27,18 +29,14 @@
             --warning-light: rgba(247, 127, 0, 0.1);
             --border: #e0e0e6;
             --shadow: 0 8px 32px rgba(0, 0, 0, 0.08);
-            --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.06);
             --scanner-bg: #0a0a1a;
             --toggle-bg: #e0e0e6;
             --toggle-knob: #ffffff;
             --result-bg: #f8f9ff;
-            --header-bg: rgba(255, 255, 255, 0.8);
-            --confirmed-bg: linear-gradient(135deg, #2ec4b6, #20a89a);
         }
 
         [data-theme="dark"] {
             --bg-primary: #0f0f1a;
-            --bg-secondary: #1a1a2e;
             --bg-card: #16213e;
             --text-primary: #e8e8f0;
             --text-secondary: #9999aa;
@@ -53,1196 +51,985 @@
             --warning-light: rgba(255, 159, 67, 0.15);
             --border: #2a2a40;
             --shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
-            --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.2);
             --scanner-bg: #050510;
             --toggle-bg: #3a3a55;
             --toggle-knob: #e8e8f0;
             --result-bg: #1a1a30;
-            --header-bg: rgba(15, 15, 26, 0.85);
-            --confirmed-bg: linear-gradient(135deg, #3dd9c8, #2bb8aa);
         }
 
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-
+        * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
         body {
             font-family: 'Inter', sans-serif;
             background: var(--bg-primary);
             color: var(--text-primary);
             min-height: 100vh;
-            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-            overflow-x: hidden;
+            transition: all 0.3s ease;
+            line-height: 1.5;
         }
-
         html[lang="ar"] body { font-family: 'Cairo', sans-serif; }
 
         /* Header */
         .header {
-            position: sticky;
-            top: 0;
-            z-index: 100;
-            background: var(--header-bg);
-            backdrop-filter: blur(20px);
-            -webkit-backdrop-filter: blur(20px);
+            position: sticky; top: 0; z-index: 100;
+            background: rgba(255,255,255,0.9);
+            backdrop-filter: blur(10px);
             border-bottom: 1px solid var(--border);
             padding: 12px 20px;
         }
+        [data-theme="dark"] .header { background: rgba(15,15,26,0.9); }
 
         .header-content {
-            max-width: 800px;
-            margin: 0 auto;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
+            max-width: 800px; margin: 0 auto;
+            display: flex; align-items: center; justify-content: space-between;
         }
 
-        .logo {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-
+        .logo { display: flex; align-items: center; gap: 10px; }
         .logo-icon {
-            width: 40px;
-            height: 40px;
+            width: 40px; height: 40px;
             background: linear-gradient(135deg, var(--accent), #7c3aed);
             border-radius: 12px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
+            display: flex; align-items: center; justify-content: center;
             font-size: 20px;
         }
-
-        .logo-text {
-            font-size: 18px;
-            font-weight: 700;
-            color: var(--text-primary);
-        }
-
+        .logo-text { font-size: 18px; font-weight: 700; }
         .logo-text span { color: var(--accent); }
 
-        .controls {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
+        .controls { display: flex; align-items: center; gap: 8px; }
 
-        /* Toggle Switches */
+        /* Toggle */
         .toggle-wrapper {
-            display: flex;
-            align-items: center;
-            gap: 6px;
+            display: flex; align-items: center; gap: 6px;
             padding: 6px 10px;
             background: var(--accent-light);
             border-radius: 20px;
-            cursor: pointer;
-            user-select: none;
-            transition: all 0.3s;
+            cursor: pointer; user-select: none;
         }
-
-        .toggle-wrapper:hover { transform: scale(1.05); }
-
-        .toggle-label {
-            font-size: 12px;
-            font-weight: 600;
-            color: var(--accent);
-            white-space: nowrap;
-        }
-
+        .toggle-label { font-size: 12px; font-weight: 600; color: var(--accent); }
+        
         .toggle-switch {
-            width: 44px;
-            height: 24px;
+            width: 44px; height: 24px;
             background: var(--toggle-bg);
             border-radius: 12px;
             position: relative;
             transition: all 0.3s;
             cursor: pointer;
         }
-
         .toggle-switch.active { background: var(--accent); }
-
         .toggle-switch::after {
-            content: '';
-            position: absolute;
-            width: 18px;
-            height: 18px;
+            content: ''; position: absolute;
+            width: 18px; height: 18px;
             background: var(--toggle-knob);
             border-radius: 50%;
-            top: 3px;
-            left: 3px;
-            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            top: 3px; left: 3px;
+            transition: all 0.3s;
             box-shadow: 0 2px 4px rgba(0,0,0,0.2);
         }
-
         .toggle-switch.active::after { left: 23px; }
 
-        /* Main Content */
-        .main {
-            max-width: 800px;
-            margin: 0 auto;
-            padding: 24px 20px;
-        }
+        /* Main */
+        .main { max-width: 800px; margin: 0 auto; padding: 20px; }
 
-        /* Scanner Section */
-        .scanner-card {
+        .card {
             background: var(--bg-card);
             border-radius: 20px;
-            padding: 24px;
+            padding: 20px;
             box-shadow: var(--shadow);
             border: 1px solid var(--border);
-            margin-bottom: 20px;
+            margin-bottom: 16px;
         }
 
-        .scanner-title {
-            font-size: 20px;
-            font-weight: 700;
-            margin-bottom: 6px;
-        }
+        .card-title { font-size: 18px; font-weight: 700; margin-bottom: 4px; }
+        .card-subtitle { font-size: 13px; color: var(--text-secondary); margin-bottom: 16px; }
 
-        .scanner-subtitle {
-            font-size: 14px;
-            color: var(--text-secondary);
-            margin-bottom: 20px;
+        /* Status Bar */
+        .status-bar {
+            display: flex; align-items: center; gap: 8px;
+            padding: 10px 14px;
+            border-radius: 10px;
+            margin-bottom: 16px;
+            font-size: 13px; font-weight: 500;
         }
+        .status-idle { background: var(--accent-light); color: var(--accent); }
+        .status-scanning { background: var(--success-light); color: var(--success); }
+        .status-offline { background: var(--warning-light); color: var(--warning); }
+        .status-error { background: var(--danger-light); color: var(--danger); }
+        
+        .pulse {
+            width: 8px; height: 8px;
+            background: currentColor;
+            border-radius: 50%;
+            animation: pulse 1.5s infinite;
+        }
+        @keyframes pulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:0.5;transform:scale(1.5)} }
 
+        /* Scanner */
         #reader {
             width: 100%;
             border-radius: 16px;
             overflow: hidden;
             background: var(--scanner-bg);
+            min-height: 300px;
         }
+        #reader video { border-radius: 16px; width: 100%; }
 
-        #reader video { border-radius: 16px; }
-
-        #reader__scan_region { border-radius: 16px; overflow: hidden; }
-        #reader__dashboard { padding: 10px !important; }
-
-        #reader__dashboard_section_csr button {
-            background: var(--accent) !important;
-            color: white !important;
-            border: none !important;
-            padding: 12px 24px !important;
-            border-radius: 12px !important;
-            font-size: 15px !important;
-            font-weight: 600 !important;
-            cursor: pointer !important;
-            transition: all 0.3s !important;
-            font-family: inherit !important;
+        /* File Upload */
+        .file-upload {
+            text-align: center; margin-top: 16px;
         }
-
-        #reader__dashboard_section_csr button:hover {
-            background: var(--accent-hover) !important;
-            transform: scale(1.02);
-        }
-
-        #reader__dashboard_section_swaplink {
-            color: var(--accent) !important;
-            font-size: 13px !important;
-            text-decoration: none !important;
-        }
-
-        .file-input-wrapper {
-            margin-top: 16px;
-            text-align: center;
-        }
-
-        .file-input-wrapper label {
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
-            padding: 12px 24px;
+        .file-upload input { display: none; }
+        .file-upload label {
+            display: inline-flex; align-items: center; gap: 8px;
+            padding: 12px 20px;
             background: var(--accent-light);
             color: var(--accent);
             border-radius: 12px;
-            font-weight: 600;
-            font-size: 14px;
+            font-weight: 600; font-size: 14px;
             cursor: pointer;
-            transition: all 0.3s;
+            transition: all 0.2s;
             border: 2px dashed var(--accent);
         }
-
-        .file-input-wrapper label:hover {
-            background: var(--accent);
-            color: white;
-        }
-
-        .file-input-wrapper input { display: none; }
+        .file-upload label:hover { background: var(--accent); color: white; }
 
         /* Buttons */
-        .btn-group {
-            display: flex;
-            gap: 10px;
-            margin-top: 16px;
-            flex-wrap: wrap;
-        }
-
+        .btn-group { display: flex; gap: 10px; margin-top: 16px; flex-wrap: wrap; }
+        
         .btn {
-            flex: 1;
-            min-width: 120px;
-            padding: 14px 20px;
-            border: none;
-            border-radius: 14px;
-            font-size: 15px;
-            font-weight: 600;
+            flex: 1; min-width: 120px;
+            padding: 14px 18px;
+            border: none; border-radius: 14px;
+            font-size: 15px; font-weight: 600;
             cursor: pointer;
-            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 8px;
+            transition: all 0.2s;
+            display: flex; align-items: center; justify-content: center; gap: 8px;
             font-family: inherit;
+            -webkit-tap-highlight-color: transparent;
         }
-
+        .btn:active { transform: scale(0.98); }
+        .btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none !important; }
+        
         .btn-primary {
             background: linear-gradient(135deg, var(--accent), #7c3aed);
             color: white;
-            box-shadow: 0 4px 15px rgba(67, 97, 238, 0.3);
         }
-
-        .btn-primary:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 6px 20px rgba(67, 97, 238, 0.4);
-        }
-
         .btn-danger {
             background: linear-gradient(135deg, var(--danger), #d63340);
             color: white;
-            box-shadow: 0 4px 15px rgba(230, 57, 70, 0.3);
         }
 
-        .btn-danger:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 6px 20px rgba(230, 57, 70, 0.4);
-        }
-
-        .btn:active { transform: translateY(0); }
-        .btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none !important; }
-
-        /* Status */
-        .status-bar {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            padding: 10px 16px;
-            border-radius: 10px;
-            margin-bottom: 16px;
-            font-size: 13px;
-            font-weight: 500;
-        }
-
-        .status-idle { background: var(--accent-light); color: var(--accent); }
-        .status-scanning { background: var(--success-light); color: var(--success); }
-        .status-connecting { background: var(--warning-light); color: var(--warning); }
-        .status-error { background: var(--danger-light); color: var(--danger); }
-
-        .status-scanning .pulse,
-        .status-connecting .pulse {
-            width: 8px;
-            height: 8px;
-            background: currentColor;
-            border-radius: 50%;
-            animation: pulse 1.5s infinite;
-        }
-
-        @keyframes pulse {
-            0%, 100% { opacity: 1; transform: scale(1); }
-            50% { opacity: 0.5; transform: scale(1.5); }
-        }
-
-        /* Result Section */
-        .result-card {
-            background: var(--bg-card);
-            border-radius: 20px;
-            padding: 24px;
-            box-shadow: var(--shadow);
-            border: 1px solid var(--border);
-            margin-bottom: 20px;
-            display: none;
-            animation: slideUp 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-        }
-
-        @keyframes slideUp {
-            from { opacity: 0; transform: translateY(20px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-
+        /* Result Card */
+        .result-card { display: none; animation: slideUp 0.3s ease; }
         .result-card.show { display: block; }
-        .result-card.confirmed {
-            border: 2px solid var(--success);
-            background: var(--success-light);
-        }
+        .result-card.confirmed { border: 2px solid var(--success); background: var(--success-light); }
+        
+        @keyframes slideUp { from{opacity:0;transform:translateY(10px)} to{opacity:1;transform:translateY(0)} }
 
         .result-header {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
+            display: flex; align-items: center; justify-content: space-between;
             margin-bottom: 16px;
         }
-
-        .result-title {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            font-size: 18px;
-            font-weight: 700;
-        }
-
+        .result-title { display: flex; align-items: center; gap: 10px; font-size: 17px; font-weight: 700; }
         .result-icon {
-            width: 36px;
-            height: 36px;
+            width: 34px; height: 34px;
             border-radius: 10px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
+            display: flex; align-items: center; justify-content: center;
             font-size: 18px;
         }
-
         .result-icon.success { background: var(--success-light); color: var(--success); }
         .result-icon.error { background: var(--danger-light); color: var(--danger); }
         .result-icon.warning { background: var(--warning-light); color: var(--warning); }
 
+        .status-badge {
+            padding: 5px 12px;
+            border-radius: 20px;
+            font-size: 11px; font-weight: 700;
+            text-transform: uppercase;
+        }
+        .status-badge.pending { background: var(--warning-light); color: var(--warning); }
+        .status-badge.confirmed { background: var(--success-light); color: var(--success); }
+
         .result-body {
             background: var(--result-bg);
             border-radius: 14px;
-            padding: 18px;
+            padding: 16px;
             border: 1px solid var(--border);
         }
-
         .result-row {
-            display: flex;
-            justify-content: space-between;
+            display: flex; justify-content: space-between;
             padding: 8px 0;
             border-bottom: 1px dashed var(--border);
         }
-
         .result-row:last-child { border-bottom: none; }
+        .result-label { font-size: 13px; color: var(--text-secondary); }
+        .result-value { font-size: 15px; font-weight: 600; word-break: break-word; }
 
-        .result-label {
-            font-size: 13px;
-            color: var(--text-secondary);
-            font-weight: 500;
-        }
-
-        .result-value {
-            font-size: 15px;
-            font-weight: 600;
-            color: var(--text-primary);
-        }
-
-        .status-badge {
-            display: inline-flex;
-            align-items: center;
-            gap: 6px;
-            padding: 6px 14px;
-            border-radius: 20px;
-            font-size: 12px;
-            font-weight: 700;
-            text-transform: uppercase;
-        }
-
-        .status-badge.pending {
-            background: var(--warning-light);
-            color: var(--warning);
-        }
-
-        .status-badge.confirmed {
-            background: var(--success-light);
-            color: var(--success);
-        }
-
-        .status-badge.confirmed::before {
-            content: '✓';
-            font-weight: bold;
-        }
-
-        .result-actions {
-            display: flex;
-            gap: 8px;
-            margin-top: 14px;
-            flex-wrap: wrap;
-        }
-
+        .result-actions { display: flex; gap: 8px; margin-top: 14px; flex-wrap: wrap; }
+        
         .btn-sm {
             padding: 10px 16px;
             border-radius: 10px;
-            font-size: 13px;
-            font-weight: 600;
-            border: none;
-            cursor: pointer;
-            transition: all 0.3s;
-            display: flex;
-            align-items: center;
-            gap: 6px;
+            font-size: 13px; font-weight: 600;
+            border: none; cursor: pointer;
+            transition: all 0.2s;
+            display: flex; align-items: center; gap: 6px;
             font-family: inherit;
         }
-
-        .btn-copy {
-            background: var(--accent-light);
-            color: var(--accent);
-        }
-
-        .btn-copy:hover {
-            background: var(--accent);
-            color: white;
-        }
-
-        .btn-call {
-            background: var(--success-light);
-            color: var(--success);
-        }
-
-        .btn-call:hover {
-            background: var(--success);
-            color: white;
-        }
+        .btn-sm:active { transform: scale(0.98); }
+        .btn-copy { background: var(--accent-light); color: var(--accent); }
+        .btn-copy:hover { background: var(--accent); color: white; }
+        .btn-call { background: var(--success-light); color: var(--success); }
+        .btn-call:hover { background: var(--success); color: white; }
 
         /* Loading */
         .loading-overlay {
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
+            position: fixed; top: 0; left: 0; right: 0; bottom: 0;
             background: rgba(0,0,0,0.5);
-            display: none;
-            align-items: center;
-            justify-content: center;
+            display: none; align-items: center; justify-content: center;
             z-index: 1000;
-            backdrop-filter: blur(4px);
         }
-
         .loading-overlay.show { display: flex; }
-
         .loading-box {
             background: var(--bg-card);
-            padding: 24px 32px;
+            padding: 20px 28px;
             border-radius: 16px;
-            display: flex;
-            align-items: center;
-            gap: 12px;
+            display: flex; align-items: center; gap: 12px;
             box-shadow: var(--shadow);
         }
-
         .spinner {
-            width: 24px;
-            height: 24px;
+            width: 22px; height: 22px;
             border: 3px solid var(--border);
             border-top-color: var(--accent);
             border-radius: 50%;
             animation: spin 1s linear infinite;
         }
-
         @keyframes spin { to { transform: rotate(360deg); } }
 
         /* Toast */
         .toast {
-            position: fixed;
-            bottom: 30px;
-            left: 50%;
+            position: fixed; bottom: 24px; left: 50%;
             transform: translateX(-50%) translateY(100px);
-            background: var(--text-primary);
-            color: var(--bg-primary);
-            padding: 14px 24px;
-            border-radius: 14px;
-            font-size: 14px;
-            font-weight: 600;
+            background: var(--text-primary); color: var(--bg-primary);
+            padding: 12px 20px; border-radius: 12px;
+            font-size: 14px; font-weight: 600;
             z-index: 1000;
-            transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-            box-shadow: 0 8px 30px rgba(0,0,0,0.3);
-            display: flex;
-            align-items: center;
-            gap: 8px;
+            transition: transform 0.3s ease;
+            display: flex; align-items: center; gap: 8px;
+            max-width: 90%; text-align: center;
         }
-
         .toast.show { transform: translateX(-50%) translateY(0); }
         .toast.success { background: var(--success); }
         .toast.error { background: var(--danger); }
-        .toast.warning { background: var(--warning); }
+        .toast.warning { background: var(--warning); color: #1a1a2e; }
 
         /* Responsive */
         @media (max-width: 600px) {
-            .header-content { gap: 8px; }
+            .header-content { gap: 6px; }
             .logo-text { font-size: 15px; }
             .toggle-label { display: none; }
-            .scanner-card, .result-card { padding: 16px; border-radius: 16px; }
-            .btn { min-width: 100px; padding: 12px 16px; font-size: 14px; }
+            .card { padding: 16px; border-radius: 16px; }
+            .btn { min-width: 100px; padding: 12px 14px; font-size: 14px; }
             .result-row { flex-direction: column; gap: 4px; }
         }
-
-        /* Scrollbar */
-        ::-webkit-scrollbar { width: 6px; }
-        ::-webkit-scrollbar-track { background: transparent; }
-        ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
-        ::-webkit-scrollbar-thumb:hover { background: var(--text-secondary); }
     </style>
 </head>
 <body>
 
-    <!-- Header -->
-    <header class="header">
-        <div class="header-content">
-            <div class="logo">
-                <div class="logo-icon">🏥</div>
-                <div class="logo-text">Clinic <span id="logoSuffix">QR Scanner</span></div>
+<header class="header">
+    <div class="header-content">
+        <div class="logo">
+            <div class="logo-icon">🏥</div>
+            <div class="logo-text">Clinic <span id="logoSuffix">QR</span></div>
+        </div>
+        <div class="controls">
+            <button id="soundToggle" style="padding:6px 10px;background:var(--accent-light);border:none;border-radius:10px;cursor:pointer;font-size:16px;" title="Sound">🔊</button>
+            <div class="toggle-wrapper" id="langToggleWrapper">
+                <span class="toggle-label">EN</span>
+                <div class="toggle-switch" id="langToggle"></div>
+                <span class="toggle-label">عربي</span>
             </div>
-            <div class="controls">
-                <!-- Sound Toggle -->
-                <button class="sound-toggle" id="soundToggle" title="Toggle Sound" style="padding:6px 10px;background:var(--accent-light);border:none;border-radius:10px;cursor:pointer;font-size:16px;">🔊</button>
-                
-                <!-- Language Toggle -->
-                <div class="toggle-wrapper" onclick="toggleLanguage()">
-                    <span class="toggle-label" id="langLabel">EN</span>
-                    <div class="toggle-switch" id="langToggle"></div>
-                    <span class="toggle-label" id="langLabelAr">عربي</span>
-                </div>
-
-                <!-- Theme Toggle -->
-                <div class="toggle-wrapper" onclick="toggleTheme()">
-                    <span class="toggle-label">🌙</span>
-                    <div class="toggle-switch" id="themeToggle"></div>
-                    <span class="toggle-label">☀️</span>
-                </div>
+            <div class="toggle-wrapper" id="themeToggleWrapper">
+                <span class="toggle-label">🌙</span>
+                <div class="toggle-switch" id="themeToggle"></div>
+                <span class="toggle-label">☀️</span>
             </div>
         </div>
-    </header>
+    </div>
+</header>
 
-    <!-- Main Content -->
-    <main class="main">
+<main class="main">
+    <div class="card">
+        <h2 class="card-title" id="scannerTitle">📸 Appointment Scanner</h2>
+        <p class="card-subtitle" id="scannerSubtitle">Scan QR to verify patient appointment</p>
 
-        <!-- Scanner Card -->
-        <div class="scanner-card">
-            <h2 class="scanner-title" id="scannerTitle">📸 Appointment QR Scanner</h2>
-            <p class="scanner-subtitle" id="scannerSubtitle">Scan patient QR code to verify appointment</p>
-
-            <!-- Status Bar -->
-            <div class="status-bar status-connecting" id="statusBar">
-                <span class="pulse"></span>
-                <span id="statusText">Connecting to database...</span>
-            </div>
-
-            <!-- Scanner -->
-            <div id="reader"></div>
-
-            <!-- File Upload -->
-            <div class="file-input-wrapper">
-                <label for="qr-file">
-                    <span>📁</span>
-                    <span id="uploadLabel">Upload QR Image</span>
-                </label>
-                <input type="file" id="qr-file" accept="image/*" onchange="handleFileUpload(event)">
-            </div>
-
-            <!-- Control Buttons -->
-            <div class="btn-group">
-                <button class="btn btn-primary" id="startBtn" onclick="startScanner()">
-                    <span>▶️</span>
-                    <span id="startLabel">Start Camera</span>
-                </button>
-                <button class="btn btn-danger" id="stopBtn" onclick="stopScanner()" disabled>
-                    <span>⏹️</span>
-                    <span id="stopLabel">Stop Camera</span>
-                </button>
-            </div>
+        <div class="status-bar status-offline" id="statusBar">
+            <span class="pulse"></span>
+            <span id="statusText">Checking connection...</span>
         </div>
 
-        <!-- Result Card -->
-        <div class="result-card" id="resultCard">
-            <div class="result-header">
-                <div class="result-title">
-                    <div class="result-icon" id="resultIcon">✅</div>
-                    <span id="resultTitle">Appointment Found</span>
-                </div>
-                <span class="status-badge pending" id="statusBadge">Pending</span>
-            </div>
-            <div class="result-body">
-                <div class="result-row">
-                    <span class="result-label" id="labelPatient">Patient Name</span>
-                    <span class="result-value" id="valuePatient">-</span>
-                </div>
-                <div class="result-row">
-                    <span class="result-label" id="labelPhone">Phone</span>
-                    <span class="result-value" id="valuePhone">-</span>
-                </div>
-                <div class="result-row">
-                    <span class="result-label" id="labelDate">Appointment Date</span>
-                    <span class="result-value" id="valueDate">-</span>
-                </div>
-                <div class="result-row">
-                    <span class="result-label" id="labelTime">Appointment Time</span>
-                    <span class="result-value" id="valueTime">-</span>
-                </div>
-                <div class="result-row">
-                    <span class="result-label" id="labelStatus">Status</span>
-                    <span class="result-value" id="valueStatus">-</span>
-                </div>
-                <div class="result-actions">
-                    <button class="btn-sm btn-copy" onclick="copyResult()">
-                        <span>📋</span>
-                        <span id="copyLabel">Copy</span>
-                    </button>
-                    <button class="btn-sm btn-call" id="callBtn" onclick="callPatient()" style="display:none">
-                        <span>📞</span>
-                        <span id="callLabel">Call</span>
-                    </button>
-                </div>
-            </div>
+        <div id="reader"></div>
+
+        <div class="file-upload">
+            <label for="qrFile">
+                <span>📁</span>
+                <span id="uploadLabel">Upload QR Image</span>
+            </label>
+            <input type="file" id="qrFile" accept="image/*">
         </div>
 
-    </main>
-
-    <!-- Loading Overlay -->
-    <div class="loading-overlay" id="loadingOverlay">
-        <div class="loading-box">
-            <div class="spinner"></div>
-            <span id="loadingText">Verifying appointment...</span>
+        <div class="btn-group">
+            <button class="btn btn-primary" id="startBtn">
+                <span>▶️</span><span id="startLabel">Start Camera</span>
+            </button>
+            <button class="btn btn-danger" id="stopBtn" disabled>
+                <span>⏹️</span><span id="stopLabel">Stop</span>
+            </button>
         </div>
     </div>
 
-    <!-- Toast -->
-    <div class="toast" id="toast"></div>
+    <div class="card result-card" id="resultCard">
+        <div class="result-header">
+            <div class="result-title">
+                <div class="result-icon" id="resultIcon">✅</div>
+                <span id="resultTitle">Result</span>
+            </div>
+            <span class="status-badge pending" id="statusBadge">Pending</span>
+        </div>
+        <div class="result-body">
+            <div class="result-row">
+                <span class="result-label" id="labelPatient">Patient</span>
+                <span class="result-value" id="valuePatient">-</span>
+            </div>
+            <div class="result-row">
+                <span class="result-label" id="labelPhone">Phone</span>
+                <span class="result-value" id="valuePhone">-</span>
+            </div>
+            <div class="result-row">
+                <span class="result-label" id="labelDate">Date</span>
+                <span class="result-value" id="valueDate">-</span>
+            </div>
+            <div class="result-row">
+                <span class="result-label" id="labelTime">Time</span>
+                <span class="result-value" id="valueTime">-</span>
+            </div>
+            <div class="result-row">
+                <span class="result-label" id="labelStatus">Status</span>
+                <span class="result-value" id="valueStatus">-</span>
+            </div>
+            <div class="result-actions">
+                <button class="btn-sm btn-copy" id="copyBtn">
+                    <span>📋</span><span id="copyLabel">Copy</span>
+                </button>
+                <button class="btn-sm btn-call" id="callBtn" style="display:none">
+                    <span>📞</span><span id="callLabel">Call</span>
+                </button>
+            </div>
+        </div>
+    </div>
+</main>
 
-    <script>
-        // ==================== Supabase Config ====================
-        const SUPABASE_URL = 'https://ncqvzpcqotdiwjqbwlwp.supabase.co';
-        const SUPABASE_ANON_KEY = 'sb_publishable_98lfpU1zaqG-MNxkhlvg6g_KEMPMPbS';
+<div class="loading-overlay" id="loadingOverlay">
+    <div class="loading-box">
+        <div class="spinner"></div>
+        <span id="loadingText">Processing...</span>
+    </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ==================== CONFIG ====================
+const SUPABASE_URL = 'https://ncqvzpcqotdiwjqbwlwp.supabase.co';
+const SUPABASE_ANON_KEY = 'sb_publishable_98lfpU1zaqG-MNxkhlvg6g_KEMPMPbS';
+
+// ==================== STATE ====================
+let supabase = null;
+let html5QrCode = null;
+let isScanning = false;
+let currentLang = 'en';
+let currentTheme = 'light';
+let soundEnabled = true;
+let lastScanned = '';
+let dbReady = false;
+let isOnline = navigator.onLine;
+
+// ==================== TRANSLATIONS ====================
+const T = {
+    en: {
+        logoSuffix: 'QR',
+        scannerTitle: '📸 Appointment Scanner',
+        scannerSubtitle: 'Scan QR to verify patient appointment',
+        statusOffline: '🔴 Offline mode',
+        statusOnline: '🟢 Connected',
+        statusReady: '✓ Ready to scan',
+        statusScanning: '🔍 Scanning...',
+        startLabel: 'Start Camera',
+        stopLabel: 'Stop',
+        uploadLabel: 'Upload QR Image',
+        resultFound: '✅ Appointment Found',
+        resultNotFound: '❌ Not Found',
+        resultError: '⚠️ Error',
+        labelPatient: 'Patient',
+        labelPhone: 'Phone',
+        labelDate: 'Date',
+        labelTime: 'Time',
+        labelStatus: 'Status',
+        copyLabel: 'Copy',
+        callLabel: 'Call',
+        copied: '✅ Copied!',
+        cameraError: '❌ Camera error',
+        dbError: '⚠️ DB offline',
+        notFound: '❌ No appointment',
+        confirmed: '✅ Confirmed!',
+        alreadyConfirmed: '⚠️ Already confirmed',
+        statusPending: 'Pending',
+        statusConfirmed: 'Confirmed',
+        loading: 'Checking...'
+    },
+    ar: {
+        logoSuffix: 'ماسح',
+        scannerTitle: '📸 ماسح المواعيد',
+        scannerSubtitle: 'امسح رمز المريض للتحقق',
+        statusOffline: '🔴 وضع عدم الاتصال',
+        statusOnline: '🟢 متصل',
+        statusReady: '✓ جاهز للمسح',
+        statusScanning: '🔍 جارٍ المسح...',
+        startLabel: 'تشغيل الكاميرا',
+        stopLabel: 'إيقاف',
+        uploadLabel: 'رفع صورة رمز',
+        resultFound: '✅ تم العثور على الموعد',
+        resultNotFound: '❌ غير موجود',
+        resultError: '⚠️ خطأ',
+        labelPatient: 'اسم المريض',
+        labelPhone: 'الهاتف',
+        labelDate: 'التاريخ',
+        labelTime: 'الوقت',
+        labelStatus: 'الحالة',
+        copyLabel: 'نسخ',
+        callLabel: 'اتصال',
+        copied: '✅ تم النسخ!',
+        cameraError: '❌ خطأ في الكاميرا',
+        dbError: '⚠️ قاعدة البيانات غير متاحة',
+        notFound: '❌ لا يوجد موعد',
+        confirmed: '✅ تم التأكيد!',
+        alreadyConfirmed: '⚠️ مؤكد مسبقاً',
+        statusPending: 'قيد الانتظار',
+        statusConfirmed: 'مؤكد',
+        loading: 'جارٍ التحقق...'
+    }
+};
+
+// ==================== HELPERS ====================
+function $(id) { return document.getElementById(id); }
+function t(key) { return T[currentLang][key] || key; }
+
+function showToast(msg, type = 'info') {
+    const toast = $('toast');
+    toast.textContent = msg;
+    toast.className = `toast ${type} show`;
+    setTimeout(() => toast.classList.remove('show'), 2500);
+}
+
+function playBeep(success = true) {
+    if (!soundEnabled) return;
+    try {
+        const ctx = new (window.AudioContext || window.webkitAudioContext)();
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.connect(gain); gain.connect(ctx.destination);
+        osc.frequency.value = success ? 1000 : 300;
+        osc.type = 'sine'; gain.gain.value = 0.2;
+        osc.start();
+        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.2);
+        osc.stop(ctx.currentTime + 0.2);
+    } catch(e) {}
+}
+
+function formatDate(dateStr) {
+    if (!dateStr) return '-';
+    const d = new Date(dateStr);
+    return d.toLocaleDateString(currentLang === 'ar' ? 'ar-EG' : 'en-US', {
+        year: 'numeric', month: 'short', day: 'numeric'
+    });
+}
+
+function formatTime(timeStr) {
+    if (!timeStr) return '-';
+    return timeStr.substring(0, 5);
+}
+
+// ==================== THEME & LANG ====================
+function initTheme() {
+    const saved = localStorage.getItem('clinic-theme');
+    if (saved === 'dark') {
+        currentTheme = 'dark';
+        document.documentElement.setAttribute('data-theme', 'dark');
+        $('themeToggle').classList.add('active');
+    }
+}
+
+function toggleTheme() {
+    currentTheme = currentTheme === 'light' ? 'dark' : 'light';
+    if (currentTheme === 'dark') {
+        document.documentElement.setAttribute('data-theme', 'dark');
+        $('themeToggle').classList.add('active');
+    } else {
+        document.documentElement.removeAttribute('data-theme');
+        $('themeToggle').classList.remove('active');
+    }
+    localStorage.setItem('clinic-theme', currentTheme);
+}
+
+function initLang() {
+    const saved = localStorage.getItem('clinic-lang');
+    if (saved === 'ar') {
+        currentLang = 'ar';
+        document.documentElement.setAttribute('lang', 'ar');
+        document.documentElement.setAttribute('dir', 'rtl');
+        $('langToggle').classList.add('active');
+        updateTexts();
+    }
+}
+
+function toggleLanguage() {
+    currentLang = currentLang === 'en' ? 'ar' : 'en';
+    if (currentLang === 'ar') {
+        document.documentElement.setAttribute('lang', 'ar');
+        document.documentElement.setAttribute('dir', 'rtl');
+        $('langToggle').classList.add('active');
+    } else {
+        document.documentElement.setAttribute('lang', 'en');
+        document.documentElement.setAttribute('dir', 'ltr');
+        $('langToggle').classList.remove('active');
+    }
+    updateTexts();
+    localStorage.setItem('clinic-lang', currentLang);
+}
+
+function updateTexts() {
+    $('logoSuffix').textContent = t('logoSuffix');
+    $('scannerTitle').textContent = t('scannerTitle');
+    $('scannerSubtitle').textContent = t('scannerSubtitle');
+    $('startLabel').textContent = t('startLabel');
+    $('stopLabel').textContent = t('stopLabel');
+    $('uploadLabel').textContent = t('uploadLabel');
+    $('labelPatient').textContent = t('labelPatient');
+    $('labelPhone').textContent = t('labelPhone');
+    $('labelDate').textContent = t('labelDate');
+    $('labelTime').textContent = t('labelTime');
+    $('labelStatus').textContent = t('labelStatus');
+    $('copyLabel').textContent = t('copyLabel');
+    $('callLabel').textContent = t('callLabel');
+    $('loadingText').textContent = t('loading');
+    updateStatus();
+}
+
+function updateStatus() {
+    const bar = $('statusBar');
+    const text = $('statusText');
+    bar.className = 'status-bar';
+    
+    if (!isOnline) {
+        bar.classList.add('status-offline');
+        text.textContent = t('statusOffline');
+    } else if (!dbReady) {
+        bar.classList.add('status-offline');
+        text.textContent = t('dbError');
+    } else if (isScanning) {
+        bar.classList.add('status-scanning');
+        text.textContent = t('statusScanning');
+    } else {
+        bar.classList.add('status-idle');
+        text.textContent = t('statusReady');
+    }
+}
+
+// ==================== SUPABASE ====================
+async function initSupabase() {
+    try {
+        supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
         
-        const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        // Test connection with timeout
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 5000);
+        
+        const { error } = await supabase
+            .from('clinic_settings')
+            .select('id')
+            .limit(1)
+            .single();
+        
+        clearTimeout(timeout);
+        
+        if (error) throw error;
+        dbReady = true;
+        console.log('✓ Supabase connected');
+        showToast(t('statusOnline'), 'success');
+    } catch (e) {
+        console.warn('⚠️ Supabase offline:', e.message);
+        dbReady = false;
+        showToast(t('dbError'), 'warning');
+    }
+    updateStatus();
+}
 
-        // ==================== State ====================
-        let html5QrcodeScanner = null;
-        let isScanning = false;
-        let currentLang = 'en';
-        let currentTheme = 'light';
-        let soundEnabled = true;
-        let lastResult = '';
-        let dbConnected = false;
+async function findAppointment(identifier) {
+    if (!supabase || !dbReady) return null;
+    
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    
+    // Try by ID first
+    if (uuidRegex.test(identifier)) {
+        const { data, error } = await supabase
+            .from('appointments')
+            .select('*')
+            .eq('id', identifier)
+            .single();
+        if (!error && data) return data;
+    }
+    
+    // Try by phone
+    const { data, error } = await supabase
+        .from('appointments')
+        .select('*')
+        .eq('phone', identifier.trim())
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .single();
+    
+    return (!error && data) ? data : null;
+}
 
-        // ==================== Translations ====================
-        const translations = {
-            en: {
-                logoSuffix: 'QR Scanner',
-                scannerTitle: '📸 Appointment QR Scanner',
-                scannerSubtitle: 'Scan patient QR code to verify appointment',
-                statusConnecting: 'Connecting to database...',
-                statusConnected: '✓ Database connected',
-                statusReady: 'Ready to scan',
-                statusScanning: 'Scanning...',
-                statusStopped: 'Camera stopped',
-                statusError: 'Database connection error',
-                startLabel: 'Start Camera',
-                stopLabel: 'Stop Camera',
-                uploadLabel: 'Upload QR Image',
-                resultTitleFound: '✅ Appointment Found',
-                resultTitleNotFound: '❌ Not Found',
-                resultTitleError: '⚠️ Error',
-                labelPatient: 'Patient Name',
-                labelPhone: 'Phone',
-                labelDate: 'Appointment Date',
-                labelTime: 'Appointment Time',
-                labelStatus: 'Status',
-                labelId: 'Appointment ID',
-                copyLabel: 'Copy',
-                callLabel: 'Call',
-                copied: '✅ Copied to clipboard',
-                cameraError: '❌ Camera access denied',
-                scanSuccess: '✅ QR scanned',
-                dbError: '❌ Database error',
-                notFound: '❌ No appointment found',
-                confirmed: '✅ Confirmed!',
-                alreadyConfirmed: '⚠️ Already confirmed',
-                confirmSuccess: '✅ Appointment confirmed',
-                confirmError: '❌ Failed to confirm',
-                statusPending: 'Pending',
-                statusConfirmed: 'Confirmed',
-                loading: 'Verifying appointment...'
-            },
-            ar: {
-                logoSuffix: 'ماسح المواعيد',
-                scannerTitle: '📸 ماسح مواعيد العيادة',
-                scannerSubtitle: 'امسح رمز المريض للتحقق من الموعد',
-                statusConnecting: 'جارٍ الاتصال بقاعدة البيانات...',
-                statusConnected: '✓ متصل بقاعدة البيانات',
-                statusReady: 'جاهز للمسح',
-                statusScanning: 'جارٍ المسح...',
-                statusStopped: 'تم إيقاف الكاميرا',
-                statusError: 'خطأ في الاتصال',
-                startLabel: 'تشغيل الكاميرا',
-                stopLabel: 'إيقاف الكاميرا',
-                uploadLabel: 'رفع صورة رمز',
-                resultTitleFound: '✅ تم العثور على الموعد',
-                resultTitleNotFound: '❌ غير موجود',
-                resultTitleError: '⚠️ خطأ',
-                labelPatient: 'اسم المريض',
-                labelPhone: 'رقم الهاتف',
-                labelDate: 'تاريخ الموعد',
-                labelTime: 'وقت الموعد',
-                labelStatus: 'الحالة',
-                labelId: 'رقم الموعد',
-                copyLabel: 'نسخ',
-                callLabel: 'اتصال',
-                copied: '✅ تم النسخ',
-                cameraError: '❌ تم رفض الوصول للكاميرا',
-                scanSuccess: '✅ تم المسح',
-                dbError: '❌ خطأ في قاعدة البيانات',
-                notFound: '❌ لم يتم العثور على موعد',
-                confirmed: '✅ تم التأكيد!',
-                alreadyConfirmed: '⚠️ مؤكد مسبقاً',
-                confirmSuccess: '✅ تم تأكيد الموعد',
-                confirmError: '❌ فشل التأكيد',
-                statusPending: 'قيد الانتظار',
-                statusConfirmed: 'مؤكد',
-                loading: 'جارٍ التحقق من الموعد...'
-            }
-        };
+async function confirmAppointment(id) {
+    if (!supabase || !dbReady) return null;
+    
+    const { data, error } = await supabase
+        .from('appointments')
+        .update({ status: 'confirmed' })
+        .eq('id', id)
+        .select()
+        .single();
+    
+    if (error) throw error;
+    return data;
+}
 
-        // ==================== Theme ====================
-        function toggleTheme() {
-            const toggle = document.getElementById('themeToggle');
-            if (currentTheme === 'light') {
-                currentTheme = 'dark';
-                document.documentElement.setAttribute('data-theme', 'dark');
-                toggle.classList.add('active');
-            } else {
-                currentTheme = 'light';
-                document.documentElement.removeAttribute('data-theme');
-                toggle.classList.remove('active');
-            }
-            localStorage.setItem('clinic-qr-theme', currentTheme);
+// ==================== SCANNER ====================
+async function startCamera() {
+    if (isScanning) return;
+    
+    try {
+        // Clear previous
+        if (html5QrCode) {
+            await html5QrCode.stop().catch(() => {});
+            html5QrCode.clear();
         }
+        
+        html5QrCode = new Html5Qrcode('reader');
+        
+        await html5QrCode.start(
+            { facingMode: 'environment' },
+            { fps: 10, qrbox: { width: 250, height: 250 } },
+            handleScanSuccess,
+            handleScanError
+        );
+        
+        isScanning = true;
+        $('startBtn').disabled = true;
+        $('stopBtn').disabled = false;
+        updateStatus();
+        console.log('✓ Camera started');
+        
+    } catch (err) {
+        console.error('Camera error:', err);
+        showToast(t('cameraError'), 'error');
+        isScanning = false;
+        $('startBtn').disabled = false;
+        $('stopBtn').disabled = true;
+        updateStatus();
+    }
+}
 
-        // ==================== Language ====================
-        function toggleLanguage() {
-            const toggle = document.getElementById('langToggle');
-            if (currentLang === 'en') {
-                currentLang = 'ar';
-                document.documentElement.setAttribute('lang', 'ar');
-                document.documentElement.setAttribute('dir', 'rtl');
-                toggle.classList.add('active');
-            } else {
-                currentLang = 'en';
-                document.documentElement.setAttribute('lang', 'en');
-                document.documentElement.setAttribute('dir', 'ltr');
-                toggle.classList.remove('active');
-            }
-            updateTexts();
-            localStorage.setItem('clinic-qr-lang', currentLang);
-        }
+async function stopCamera() {
+    if (!isScanning || !html5QrCode) return;
+    
+    try {
+        await html5QrCode.stop();
+        html5QrCode.clear();
+        isScanning = false;
+        $('startBtn').disabled = false;
+        $('stopBtn').disabled = true;
+        updateStatus();
+        console.log('✓ Camera stopped');
+    } catch (err) {
+        console.error('Stop error:', err);
+    }
+}
 
-        function updateTexts() {
-            const t = translations[currentLang];
-            document.getElementById('logoSuffix').textContent = t.logoSuffix;
-            document.getElementById('scannerTitle').textContent = t.scannerTitle;
-            document.getElementById('scannerSubtitle').textContent = t.scannerSubtitle;
-            document.getElementById('startLabel').textContent = t.startLabel;
-            document.getElementById('stopLabel').textContent = t.stopLabel;
-            document.getElementById('uploadLabel').textContent = t.uploadLabel;
-            document.getElementById('labelPatient').textContent = t.labelPatient;
-            document.getElementById('labelPhone').textContent = t.labelPhone;
-            document.getElementById('labelDate').textContent = t.labelDate;
-            document.getElementById('labelTime').textContent = t.labelTime;
-            document.getElementById('labelStatus').textContent = t.labelStatus;
-            document.getElementById('copyLabel').textContent = t.copyLabel;
-            document.getElementById('callLabel').textContent = t.callLabel;
-            document.getElementById('loadingText').textContent = t.loading;
-            updateStatus(dbConnected ? 'ready' : 'connecting');
-        }
-
-        function t(key) { return translations[currentLang][key]; }
-
-        // ==================== Sound ====================
-        document.getElementById('soundToggle').addEventListener('click', () => {
-            soundEnabled = !soundEnabled;
-            document.getElementById('soundToggle').textContent = soundEnabled ? '🔊' : '🔇';
-        });
-
-        function playBeep(success = true) {
-            if (!soundEnabled) return;
-            try {
-                const ctx = new (window.AudioContext || window.webkitAudioContext)();
-                const osc = ctx.createOscillator();
-                const gain = ctx.createGain();
-                osc.connect(gain);
-                gain.connect(ctx.destination);
-                osc.frequency.value = success ? 1200 : 400;
-                osc.type = 'sine';
-                gain.gain.value = 0.3;
-                osc.start();
-                gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.3);
-                osc.stop(ctx.currentTime + 0.3);
-            } catch (e) {}
-        }
-
-        // ==================== Status ====================
-        function updateStatus(state) {
-            const bar = document.getElementById('statusBar');
-            const text = document.getElementById('statusText');
-            const pulse = bar.querySelector('.pulse');
-
-            bar.className = 'status-bar';
-            if (state === 'scanning') {
-                bar.classList.add('status-scanning');
-                text.textContent = t('statusScanning');
-                pulse.style.display = 'block';
-            } else if (state === 'connecting') {
-                bar.classList.add('status-connecting');
-                text.textContent = t('statusConnecting');
-                pulse.style.display = 'block';
-            } else if (state === 'error') {
-                bar.classList.add('status-error');
-                text.textContent = t('statusError');
-                pulse.style.display = 'none';
-            } else {
-                bar.classList.add('status-idle');
-                text.textContent = dbConnected ? t('statusReady') : t('statusConnecting');
-                pulse.style.display = dbConnected ? 'none' : 'block';
-            }
-        }
-
-        // ==================== Database ====================
-        async function checkDatabaseConnection() {
-            try {
-                const { data, error } = await supabase
-                    .from('clinic_settings')
-                    .select('id')
-                    .limit(1)
-                    .single();
+async function handleScanSuccess(decodedText) {
+    // Debounce
+    const clean = decodedText.trim();
+    if (clean === lastScanned) return;
+    lastScanned = clean;
+    
+    $('loadingOverlay').classList.add('show');
+    
+    try {
+        if (!isOnline || !dbReady) {
+            // Offline: show raw data
+            playBeep(true);
+            showOfflineResult(clean);
+            showToast('📴 ' + t('dbError'), 'warning');
+        } else {
+            // Online: search DB
+            const appt = await findAppointment(clean);
+            
+            if (appt) {
+                playBeep(true);
+                await showAppointment(appt);
                 
-                if (error) throw error;
-                dbConnected = true;
-                updateStatus('ready');
-                showToast(t('statusConnected'), 'success');
-                return true;
-            } catch (err) {
-                console.error('DB Connection Error:', err);
-                dbConnected = false;
-                updateStatus('error');
-                showToast(t('dbError'), 'error');
-                return false;
-            }
-        }
-
-        async function findAppointment(identifier) {
-            // Try to match by ID (UUID) first, then by phone
-            let appointment = null;
-            
-            // Check if it's a valid UUID
-            const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-            
-            if (uuidRegex.test(identifier)) {
-                // Search by ID
-                const { data, error } = await supabase
-                    .from('appointments')
-                    .select('*')
-                    .eq('id', identifier)
-                    .single();
-                if (!error && data) appointment = data;
-            }
-            
-            // If not found by ID, try phone number
-            if (!appointment) {
-                const { data, error } = await supabase
-                    .from('appointments')
-                    .select('*')
-                    .eq('phone', identifier)
-                    .order('created_at', { ascending: false })
-                    .limit(1)
-                    .single();
-                if (!error && data) appointment = data;
-            }
-            
-            return appointment;
-        }
-
-        async function confirmAppointment(appointmentId) {
-            const { data, error } = await supabase
-                .from('appointments')
-                .update({ status: 'confirmed' })
-                .eq('id', appointmentId)
-                .select()
-                .single();
-            
-            if (error) throw error;
-            return data;
-        }
-
-        // ==================== Scanner ====================
-        function startScanner() {
-            if (isScanning) return;
-            if (!dbConnected) {
-                showToast(t('dbError'), 'error');
-                return;
-            }
-
-            const startBtn = document.getElementById('startBtn');
-            const stopBtn = document.getElementById('stopBtn');
-
-            html5QrcodeScanner = new Html5Qrcode("reader", {
-                fps: 15,
-                qrbox: { width: 250, height: 250 },
-                aspectRatio: 1.0,
-            });
-
-            html5QrcodeScanner.start(
-                { facingMode: "environment" },
-                { fps: 15, qrbox: { width: 250, height: 250 } },
-                onScanSuccess,
-                onScanFailure
-            ).then(() => {
-                isScanning = true;
-                startBtn.disabled = true;
-                stopBtn.disabled = false;
-                updateStatus('scanning');
-            }).catch((err) => {
-                showToast(t('cameraError'), 'error');
-                console.error(err);
-            });
-        }
-
-        function stopScanner() {
-            if (!isScanning || !html5QrcodeScanner) return;
-
-            html5QrcodeScanner.stop().then(() => {
-                html5QrcodeScanner.clear();
-                isScanning = false;
-                document.getElementById('startBtn').disabled = false;
-                document.getElementById('stopBtn').disabled = true;
-                updateStatus('ready');
-            }).catch((err) => console.error(err));
-        }
-
-        async function onScanSuccess(decodedText, decodedResult) {
-            if (decodedText === lastResult) return;
-            lastResult = decodedText;
-
-            // Show loading
-            document.getElementById('loadingOverlay').classList.add('show');
-            
-            try {
-                // Search in database
-                const appointment = await findAppointment(decodedText.trim());
-                
-                if (appointment) {
-                    playBeep(true);
-                    await displayAppointment(appointment);
-                    
-                    // Auto-confirm if pending
-                    if (appointment.status === 'pending') {
-                        await confirmAppointment(appointment.id);
-                        showToast(t('confirmSuccess'), 'success');
-                        // Refresh display with confirmed status
-                        const updated = await findAppointment(decodedText.trim());
-                        if (updated) await displayAppointment(updated, true);
-                    } else if (appointment.status === 'confirmed') {
-                        showToast(t('alreadyConfirmed'), 'warning');
-                    }
-                } else {
-                    playBeep(false);
-                    showNotFound(decodedText);
-                    showToast(t('notFound'), 'error');
+                // Auto-confirm if pending
+                if (appt.status === 'pending') {
+                    await confirmAppointment(appt.id);
+                    showToast(t('confirmed'), 'success');
+                    // Refresh display
+                    const updated = await findAppointment(clean);
+                    if (updated) await showAppointment(updated);
+                } else if (appt.status === 'confirmed') {
+                    showToast(t('alreadyConfirmed'), 'warning');
                 }
-            } catch (err) {
-                console.error('Scan error:', err);
-                playBeep(false);
-                showError(t('dbError'));
-                showToast(t('dbError'), 'error');
-            } finally {
-                document.getElementById('loadingOverlay').classList.remove('show');
-            }
-        }
-
-        function onScanFailure(error) {
-            // Silently ignore
-        }
-
-        // ==================== Display Results ====================
-        async function displayAppointment(appt, justConfirmed = false) {
-            const card = document.getElementById('resultCard');
-            const icon = document.getElementById('resultIcon');
-            const title = document.getElementById('resultTitle');
-            const badge = document.getElementById('statusBadge');
-            
-            card.classList.add('show');
-            card.classList.remove('fade-in');
-            void card.offsetWidth;
-            card.classList.add('fade-in');
-            
-            // Format date/time
-            const date = new Date(appt.appointment_date);
-            const time = appt.appointment_time ? appt.appointment_time.substring(0, 5) : '-';
-            const dateStr = date.toLocaleDateString(currentLang === 'ar' ? 'ar-EG' : 'en-US', {
-                year: 'numeric', month: 'short', day: 'numeric'
-            });
-
-            // Update UI
-            document.getElementById('valuePatient').textContent = appt.patient_name;
-            document.getElementById('valuePhone').textContent = appt.phone;
-            document.getElementById('valueDate').textContent = dateStr;
-            document.getElementById('valueTime').textContent = time;
-            document.getElementById('valueStatus').textContent = t('status' + (appt.status?.charAt(0).toUpperCase() + appt.status?.slice(1) || 'Pending'));
-            
-            // Update badge
-            badge.className = 'status-badge ' + (appt.status === 'confirmed' ? 'confirmed' : 'pending');
-            badge.textContent = t('status' + (appt.status?.charAt(0).toUpperCase() + appt.status?.slice(1) || 'Pending'));
-            
-            // Show/hide call button
-            const callBtn = document.getElementById('callBtn');
-            callBtn.style.display = appt.phone ? 'flex' : 'none';
-            
-            // Visual feedback for confirmed
-            if (appt.status === 'confirmed' || justConfirmed) {
-                card.classList.add('confirmed');
-                icon.className = 'result-icon success';
-                icon.textContent = '✅';
-                title.textContent = t('resultTitleFound');
             } else {
-                card.classList.remove('confirmed');
-                icon.className = 'result-icon warning';
-                icon.textContent = '⏳';
-                title.textContent = t('resultTitleFound');
-            }
-            
-            // Store current appointment ID for actions
-            card.dataset.appointmentId = appt.id;
-            card.dataset.patientPhone = appt.phone;
-        }
-
-        function showNotFound(identifier) {
-            const card = document.getElementById('resultCard');
-            card.classList.add('show');
-            card.classList.remove('confirmed', 'fade-in');
-            void card.offsetWidth;
-            card.classList.add('fade-in');
-            
-            document.getElementById('resultIcon').className = 'result-icon error';
-            document.getElementById('resultIcon').textContent = '❌';
-            document.getElementById('resultTitle').textContent = t('resultTitleNotFound');
-            document.getElementById('statusBadge').className = 'status-badge pending';
-            document.getElementById('statusBadge').textContent = '-';
-            
-            document.getElementById('valuePatient').textContent = '-';
-            document.getElementById('valuePhone').textContent = '-';
-            document.getElementById('valueDate').textContent = '-';
-            document.getElementById('valueTime').textContent = '-';
-            document.getElementById('valueStatus').textContent = '-';
-            document.getElementById('callBtn').style.display = 'none';
-            
-            card.dataset.appointmentId = '';
-        }
-
-        function showError(message) {
-            const card = document.getElementById('resultCard');
-            card.classList.add('show');
-            
-            document.getElementById('resultIcon').className = 'result-icon error';
-            document.getElementById('resultIcon').textContent = '⚠️';
-            document.getElementById('resultTitle').textContent = t('resultTitleError');
-            document.getElementById('statusBadge').textContent = '-';
-            document.getElementById('valueStatus').textContent = message;
-        }
-
-        // ==================== File Upload ====================
-        async function handleFileUpload(event) {
-            const file = event.target.files[0];
-            if (!file) return;
-
-            const html5QrCode = new Html5Qrcode("reader");
-            try {
-                const decodedText = await html5QrCode.scanFile(file, true);
-                lastResult = decodedText;
-                document.getElementById('loadingOverlay').classList.add('show');
-                
-                const appointment = await findAppointment(decodedText.trim());
-                if (appointment) {
-                    playBeep(true);
-                    await displayAppointment(appointment);
-                    if (appointment.status === 'pending') {
-                        await confirmAppointment(appointment.id);
-                        showToast(t('confirmSuccess'), 'success');
-                        const updated = await findAppointment(decodedText.trim());
-                        if (updated) await displayAppointment(updated, true);
-                    }
-                } else {
-                    playBeep(false);
-                    showNotFound(decodedText);
-                    showToast(t('notFound'), 'error');
-                }
-            } catch (err) {
                 playBeep(false);
-                showToast(currentLang === 'ar' ? '❌ رمز غير صالح' : '❌ Invalid QR code', 'error');
-            } finally {
-                document.getElementById('loadingOverlay').classList.remove('show');
-                event.target.value = '';
+                showNotFound(clean);
+                showToast(t('notFound'), 'error');
             }
         }
+    } catch (err) {
+        console.error('Scan error:', err);
+        playBeep(false);
+        showOfflineResult(clean);
+        showToast('⚠️ ' + t('dbError'), 'warning');
+    } finally {
+        $('loadingOverlay').classList.remove('show');
+    }
+}
 
-        // ==================== Actions ====================
-        function copyResult() {
-            const patient = document.getElementById('valuePatient').textContent;
-            const phone = document.getElementById('valuePhone').textContent;
-            const date = document.getElementById('valueDate').textContent;
-            const time = document.getElementById('valueTime').textContent;
-            
-            const text = `${patient}\n📱 ${phone}\n📅 ${date} ${time}`;
-            navigator.clipboard.writeText(text).then(() => {
-                showToast(t('copied'), 'success');
-            }).catch(() => {
-                const ta = document.createElement('textarea');
-                ta.value = text;
-                document.body.appendChild(ta);
-                ta.select();
-                document.execCommand('copy');
-                document.body.removeChild(ta);
-                showToast(t('copied'), 'success');
-            });
-        }
+function handleScanError(err) {
+    // Ignore scan failures (normal)
+}
 
-        function callPatient() {
-            const phone = document.getElementById('resultCard').dataset.patientPhone;
-            if (phone) {
-                window.location.href = `tel:${phone.replace(/\s+/g, '')}`;
-            }
-        }
+// ==================== DISPLAY ====================
+async function showAppointment(appt) {
+    const card = $('resultCard');
+    card.classList.add('show');
+    
+    $('resultIcon').className = 'result-icon success';
+    $('resultIcon').textContent = '✅';
+    $('resultTitle').textContent = t('resultFound');
+    
+    $('statusBadge').className = 'status-badge ' + (appt.status === 'confirmed' ? 'confirmed' : 'pending');
+    $('statusBadge').textContent = t('status' + (appt.status?.charAt(0).toUpperCase() + appt.status?.slice(1) || 'Pending'));
+    
+    $('valuePatient').textContent = appt.patient_name || '-';
+    $('valuePhone').textContent = appt.phone || '-';
+    $('valueDate').textContent = formatDate(appt.appointment_date);
+    $('valueTime').textContent = formatTime(appt.appointment_time);
+    $('valueStatus').textContent = t('status' + (appt.status?.charAt(0).toUpperCase() + appt.status?.slice(1) || 'Pending'));
+    
+    // Call button
+    $('callBtn').style.display = appt.phone ? 'flex' : 'none';
+    
+    // Visual
+    if (appt.status === 'confirmed') {
+        card.classList.add('confirmed');
+    } else {
+        card.classList.remove('confirmed');
+    }
+    
+    // Store for actions
+    card.dataset.phone = appt.phone || '';
+}
 
-        // ==================== Toast ====================
-        function showToast(message, type = 'info') {
-            const toast = document.getElementById('toast');
-            toast.textContent = message;
-            toast.className = `toast ${type} show`;
-            setTimeout(() => toast.classList.remove('show'), 3000);
-        }
+function showNotFound(raw) {
+    const card = $('resultCard');
+    card.classList.add('show');
+    card.classList.remove('confirmed');
+    
+    $('resultIcon').className = 'result-icon error';
+    $('resultIcon').textContent = '❌';
+    $('resultTitle').textContent = t('resultNotFound');
+    $('statusBadge').className = 'status-badge pending';
+    $('statusBadge').textContent = '-';
+    
+    $('valuePatient').textContent = '-';
+    $('valuePhone').textContent = '-';
+    $('valueDate').textContent = '-';
+    $('valueTime').textContent = '-';
+    $('valueStatus').textContent = t('notFound');
+    $('callBtn').style.display = 'none';
+    
+    card.dataset.phone = '';
+}
 
-        // ==================== Helpers ====================
-        function escapeHtml(text) {
-            const div = document.createElement('div');
-            div.textContent = text;
-            return div.innerHTML;
-        }
+function showOfflineResult(raw) {
+    const card = $('resultCard');
+    card.classList.add('show');
+    card.classList.remove('confirmed');
+    
+    $('resultIcon').className = 'result-icon warning';
+    $('resultIcon').textContent = '📴';
+    $('resultTitle').textContent = currentLang === 'ar' ? '📴 تم المسح (أوفلاين)' : '📴 Scanned (Offline)';
+    $('statusBadge').className = 'status-badge pending';
+    $('statusBadge').textContent = currentLang === 'ar' ? 'غير مؤكد' : 'Unverified';
+    
+    $('valuePatient').textContent = '-';
+    $('valuePhone').textContent = '-';
+    $('valueDate').textContent = '-';
+    $('valueTime').textContent = '-';
+    $('valueStatus').textContent = currentLang === 'ar' ? 'يتطلب اتصال' : 'Requires connection';
+    $('callBtn').style.display = 'none';
+    
+    card.dataset.phone = '';
+}
 
-        // ==================== Init ====================
-        async function init() {
-            // Load theme
-            const savedTheme = localStorage.getItem('clinic-qr-theme');
-            if (savedTheme === 'dark') {
-                currentTheme = 'dark';
-                document.documentElement.setAttribute('data-theme', 'dark');
-                document.getElementById('themeToggle').classList.add('active');
-            }
+// ==================== FILE UPLOAD ====================
+async function handleFileUpload(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+    
+    $('loadingOverlay').classList.add('show');
+    
+    try {
+        const scanner = new Html5Qrcode('reader');
+        const decoded = await scanner.scanFile(file, true);
+        
+        lastScanned = decoded.trim();
+        await handleScanSuccess(decoded);
+        
+    } catch (err) {
+        console.error('File scan error:', err);
+        playBeep(false);
+        showToast(currentLang === 'ar' ? '❌ رمز غير صالح' : '❌ Invalid QR', 'error');
+    } finally {
+        $('loadingOverlay').classList.remove('show');
+        e.target.value = '';
+    }
+}
 
-            // Load language
-            const savedLang = localStorage.getItem('clinic-qr-lang');
-            if (savedLang === 'ar') {
-                currentLang = 'ar';
-                document.documentElement.setAttribute('lang', 'ar');
-                document.documentElement.setAttribute('dir', 'rtl');
-                document.getElementById('langToggle').classList.add('active');
-                updateTexts();
-            }
+// ==================== ACTIONS ====================
+function copyResult() {
+    const patient = $('valuePatient').textContent;
+    const phone = $('valuePhone').textContent;
+    const date = $('valueDate').textContent;
+    const time = $('valueTime').textContent;
+    
+    const text = `${patient}\n📱 ${phone}\n📅 ${date} ${time}`.trim();
+    
+    navigator.clipboard.writeText(text).then(() => {
+        showToast(t('copied'), 'success');
+    }).catch(() => {
+        // Fallback
+        const ta = document.createElement('textarea');
+        ta.value = text;
+        document.body.appendChild(ta);
+        ta.select();
+        document.execCommand('copy');
+        document.body.removeChild(ta);
+        showToast(t('copied'), 'success');
+    });
+}
 
-            // Connect to database
-            await checkDatabaseConnection();
-        }
+function callPatient() {
+    const phone = $('resultCard').dataset.phone;
+    if (phone) {
+        window.location.href = `tel:${phone.replace(/[^\d+]/g, '')}`;
+    }
+}
 
-        // Start initialization
-        init();
-    </script>
+// ==================== EVENT LISTENERS ====================
+function bindEvents() {
+    // Theme
+    $('themeToggleWrapper').addEventListener('click', toggleTheme);
+    
+    // Language
+    $('langToggleWrapper').addEventListener('click', toggleLanguage);
+    
+    // Sound
+    $('soundToggle').addEventListener('click', () => {
+        soundEnabled = !soundEnabled;
+        $('soundToggle').textContent = soundEnabled ? '🔊' : '🔇';
+    });
+    
+    // Start/Stop Camera - using click with proper binding
+    $('startBtn').addEventListener('click', async (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        await startCamera();
+    });
+    
+    $('stopBtn').addEventListener('click', async (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        await stopCamera();
+    });
+    
+    // File upload
+    $('qrFile').addEventListener('change', handleFileUpload);
+    
+    // Result actions
+    $('copyBtn').addEventListener('click', copyResult);
+    $('callBtn').addEventListener('click', callPatient);
+    
+    // Online/Offline detection
+    window.addEventListener('online', () => {
+        isOnline = true;
+        updateStatus();
+        if (!dbReady) initSupabase();
+        showToast('🟢 ' + (currentLang === 'ar' ? 'متصل' : 'Online'), 'success');
+    });
+    
+    window.addEventListener('offline', () => {
+        isOnline = false;
+        dbReady = false;
+        updateStatus();
+        showToast('🔴 ' + (currentLang === 'ar' ? 'أوفلاين' : 'Offline'), 'warning');
+    });
+    
+    // Prevent default on buttons to avoid form submission issues
+    document.querySelectorAll('button').forEach(btn => {
+        btn.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            btn.click();
+        }, { passive: false });
+    });
+}
+
+// ==================== INIT ====================
+async function init() {
+    console.log('🚀 Initializing...');
+    
+    // Load preferences
+    initTheme();
+    initLang();
+    
+    // Bind all events first
+    bindEvents();
+    
+    // Initialize Supabase (non-blocking)
+    if (isOnline) {
+        await initSupabase();
+    }
+    
+    // Update UI
+    updateStatus();
+    
+    console.log('✓ Initialization complete');
+}
+
+// Start when DOM is ready
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+} else {
+    init();
+}
+</script>
 </body>
 </html>
